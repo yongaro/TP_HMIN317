@@ -75,7 +75,7 @@ TriangleWindow::TriangleWindow(const unsigned char fps)
 }
 
 void TriangleWindow::initCamera() {
-    m_cam = Camera(0.0f, 2.0f, 0.0f);
+    m_cam = Camera(0.0f, 3.0f, 5.0f);
     m_cam.see(1.0f, 2.0f, 1.0f);
     m_cam.setSpeed(m_step);
     m_cam.setBoost(10.0f);
@@ -258,7 +258,7 @@ void TriangleWindow::initialize() {
             this->addPointToTriangles(x + 1, 0, y + 1);
             glm::vec3 n2 = getNormal(triangles.size()-9);
             for( size_t i = 0; i < 3; ++i ){
-                nrm.push_back(n1.x); nrm.push_back(n1.y); nrm.push_back(n1.z);
+                nrm.push_back(n2.x); nrm.push_back(n2.y); nrm.push_back(n2.z);
             }
         }
     }
