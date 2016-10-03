@@ -342,6 +342,7 @@ void TriangleWindow::render() {
     glViewport(0, 0, width() * retinaScale, height() * retinaScale);
 
     //glDepthMask(GL_TRUE);
+    glClearColor(0.185,0.310,0.313,0.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_program->bind();
 
