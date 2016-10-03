@@ -75,7 +75,7 @@ TriangleWindow::TriangleWindow(const unsigned char fps)
 }
 
 void TriangleWindow::initCamera() {
-    m_cam = Camera(0.0f, 3.0f, 5.0f);
+    m_cam = Camera(0.0f, 2.0f, 5.0f);
     m_cam.see(1.0f, 2.0f, 1.0f);
     m_cam.setSpeed(m_step);
     m_cam.setBoost(10.0f);
@@ -398,9 +398,10 @@ void TriangleWindow::render() {
     }
     */
 
-    //glPointSize(1);
-    //glColor3ub(255,0,0);
-    //glBegin(GL_POINT);
+    glUseProgram(0);
+    glPointSize(10);
+    glColor3ub(255,0,0);
+    glBegin(GL_POINT);
 
     particlesPos.clear();
     while (it != particles.used.end()) {
@@ -416,7 +417,8 @@ void TriangleWindow::render() {
             particlesPos.push_back(pos.x);
             particlesPos.push_back(pos.y);
             particlesPos.push_back(pos.z);
-            //glVertex3f(pos.x, pos.y, pos.z);
+            glVertex3f(pos.x, pos.y, pos.z);
+            glColor3f(1.0f,0.0f,0.0f);
         }
 
         if (!isActive) {
@@ -430,15 +432,15 @@ void TriangleWindow::render() {
 
     }
 
-    glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
-    glDrawArrays(GL_POINTS, 0,  particlesPos.size() / 3);
+    //glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
+    //glDrawArrays(GL_POINTS, 0,  particlesPos.size() / 3);
 
     glDisableVertexAttribArray(3);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
-    //glEnd();
-    //glFlush();
+    glEnd();
+    glFlush();
     m_program->release();
 
     ++m_frame;
