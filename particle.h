@@ -21,14 +21,17 @@ public :
     void setName(std::string);
     std::string getName() const;
 
-    void setSize(unsigned char);
-    unsigned char getSize() const;
+    void setSize(float);
+    float getSize() const;
 
     void setColor(unsigned char, unsigned char, unsigned char);
     struct Color getColor() const;
 
     void setPosition(GLfloat, GLfloat, GLfloat);
     glm::vec3 getPosition() const;
+
+    void setWeight(float);
+    float getWeight() const;
 
 
      void setLifeTime(unsigned int);
@@ -40,10 +43,11 @@ public :
     void copy(Particle*);
 private :
     std::string name;
-    unsigned char size;
+    float size;
     struct Color color;
     glm::vec3 position;
     unsigned int lifeTime;
+    float weight;
 };
 
 #endif // PARTICLE_H

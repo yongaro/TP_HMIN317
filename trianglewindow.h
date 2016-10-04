@@ -33,7 +33,10 @@ public:
 
     void setSeason(const unsigned char);
     bool isOverTextureHeight(GLfloat, GLfloat, GLfloat);
+    void increaseTextureHeight(GLfloat, GLfloat, GLfloat);
+    void decreaseTextureHeight(GLfloat, GLfloat, GLfloat);
     void clear();
+    void updateParticles();
 
     static const unsigned char WINTER = 0;
     static const unsigned char SPRING = 1;
@@ -84,7 +87,7 @@ private:
     std::vector<GLfloat> uv;
     std::vector<GLfloat> colors;
     std::vector<GLfloat> nrm;
-
+    GLfloat **groundHeight;
     QOpenGLShaderProgram* m_program;
     int m_frame;
 

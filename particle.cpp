@@ -10,6 +10,7 @@ Particle::Particle() {
     position.z = 0;
 
     size = 0;
+    weight = 0;
     setColor(255,255,255);
     setName("undefined");
 }
@@ -24,11 +25,19 @@ std::string Particle::getName() const {
     return name;
 }
 
-void Particle::setSize(unsigned char newSize) {
+void Particle::setSize(float newSize) {
     size = newSize;
 }
 
-unsigned char Particle::getSize() const {
+float Particle::getWeight() const {
+    return weight;
+}
+
+void Particle::setWeight(float newWeight) {
+    weight = newWeight;
+}
+
+float Particle::getSize() const {
     return size;
 }
 
@@ -61,13 +70,19 @@ unsigned int Particle::getLifeTime() const {
 }
 
 void Particle::move () {
-    setPosition(position.x, position.y - 0.05f, position.z);
+    setPosition(position.x, position.y - weight, position.z);
 }
 
 bool Particle::live(TriangleWindow* ctx) {
     if (lifeTime > 0) {
-        if (ctx->isOverTextureHeight(position.x, position.y, position.z)) {
+        if (ctx->isOverTextureHeight(position.x, position.y - weight, position.z)) {
             move();
+            /*
+            if (ctx->isOverTextureHeight(position.x, position.y, position.z)) {
+                move();
+            }*/
+        }  else {
+            ctx->increaseTextureHeight(position.x, position.z, size);
         }
         return ((--lifeTime) > 0);
     } else {
@@ -82,6 +97,7 @@ void Particle::clear() {
     position.z = 0;
 
     size = 0;
+    weight = 0;
     setColor(255,255,255);
     setName("undefined");
 }
@@ -92,4 +108,5 @@ void Particle::copy(Particle* p) {
     size = p->size;
     color = p->color;
     setName(p->getName());
+    weight = p->weight;
 }

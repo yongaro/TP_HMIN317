@@ -66,11 +66,16 @@ static const char* fragmentShaderSource =
 TriangleWindow::~TriangleWindow() {
     delete timer;
     delete[] seasons;
+
+    for (int i=0; i < m_img_w; ++i) {
+        delete[] groundHeight[i];
+    }
+    delete[] groundHeight;
 }
 
 TriangleWindow::TriangleWindow(const unsigned char fps)
     : on(false),
-      m_step(0.05f),
+      m_step(0.02f),
       tick(0),
       m_fps(fps),
       m_program(0),
@@ -127,6 +132,15 @@ void TriangleWindow::initMap() {
     if(m_img.load("./heightmap-1.png")) {
         m_img_w = m_img.width();
         m_img_h = m_img.height();
+
+        groundHeight = new GLfloat* [m_img_w];
+        for (int i=0; i < m_img_w; ++i) {
+            groundHeight[i] = new GLfloat [m_img_h];
+            for (int j=0; j < m_img_h; ++j) {
+                QColor pix = m_img.pixel(i,j);
+                groundHeight[i][j] = GLfloat(pix.red() / 255.0f) * 2.0f;
+            }
+        }
     } else {
         cerr << "impossible de charger la texture" << endl;
     }
@@ -327,9 +341,9 @@ bool TriangleWindow::isOverTextureHeight(GLfloat x, GLfloat y, GLfloat z) {
     unsigned int yp = (z / m_step);
 
     // Lecture du pixel
-    if((xp < m_img_w) && (yp < m_img_h)){
-        QColor pix = m_img.pixel(xp, yp);
-        return ((y) > ((GLfloat (pix.red()) / 255.0f) * 2.0f));
+    if((xp < m_img_w) && (yp < m_img_h)) {
+        //cout << y  << " : " << groundHeight[xp][yp];
+        return (y > groundHeight[xp][yp]);
     } else {
         return true;
     }
@@ -345,6 +359,32 @@ void TriangleWindow::rearwardCam() {
     if (this->isOverTextureHeight(m_cam.getX(), m_cam.getY(), m_cam.getZ() - m_step)) {
         m_cam.toBackward();
     }
+}
+
+void TriangleWindow::increaseTextureHeight(GLfloat x, GLfloat z, GLfloat addValue) {
+    // On transforme les coordonée 3D en coordonnées images
+     unsigned int xp = (x / m_step);
+     unsigned int yp = (z / m_step);
+
+     if((xp < m_img_w) && (yp < m_img_h)){
+        GLfloat a = groundHeight[xp][yp];
+
+         groundHeight[xp][yp] += addValue;
+
+          cout << (groundHeight[xp][yp] - a) << endl;
+
+     }
+}
+
+void TriangleWindow::decreaseTextureHeight(GLfloat x, GLfloat z, GLfloat removeValue) {
+    // On transforme les coordonée 3D en coordonnées images
+     unsigned int xp = (x / m_step);
+     unsigned int yp = (z / m_step);
+
+     // Lecture du pixel
+     if((xp < m_img_w) && (yp < m_img_h)){
+         groundHeight[xp][yp] -= removeValue;
+     }
 }
 
 void TriangleWindow::towardRightCam() {
@@ -371,7 +411,71 @@ void TriangleWindow::downCam() {
     }
 }
 
+void TriangleWindow::updateParticles() {
+    // Ajout de nouvelles particules
+
+    Particle* p;
+    for (int i=0; i < 20; ++i) {
+         p = particles.ask();
+
+         //p->setName("Hello");
+         p->copy(seasons[currentSeason].getParticle());
+         p->setPosition((rand() % m_img_w) * m_step, 5.0f, (rand() % m_img_h) * m_step);
+    }
+
+    // Vie des particules
+    std::list<Particle*>::iterator it = particles.used.begin();
+
+    //glUseProgram(0);
+    //glPointSize(100);
+    //glColor3ub(255,0,0);
+    //glBegin(GL_POINT);
+
+    particlesPos.clear();
+    particlesCol.clear();
+    particlesUV.clear();
+    particlesNrm.clear();
+    int i = 0;
+    while (it != particles.used.end()) {
+        bool isActive = (*it)->live(this);
+
+        glm::vec3 pos = (*it)->getPosition();
+        if (isActive) {
+           GLint r = (*it)->getColor().r;
+            GLint g = (*it)->getColor().g;
+            GLint b = (*it)->getColor().b;
+
+            particlesPos.push_back(pos.x);
+            particlesPos.push_back(pos.y);
+            particlesPos.push_back(pos.z);
+
+            particlesCol.push_back(1.0f);
+            particlesCol.push_back(1.0f);
+            particlesCol.push_back(1.0f);
+
+            particlesUV.push_back(0.5f);
+            particlesUV.push_back(0.5f);
+
+            particlesNrm.push_back(0.0f);
+            particlesNrm.push_back(1.0f);
+            particlesNrm.push_back(0.0f);
+            i++;
+        }
+
+        if( !isActive ){
+            particles.recycle(*it);
+            decreaseTextureHeight(pos.x, pos.y, (*it)->getSize());
+            //articles.avaibles.push_back(*it);
+           particles.used.erase(it++);
+        }
+        else{ ++it; }
+
+    }
+}
+
 void TriangleWindow::render() {
+    updateParticles();
+    glPointSize(0.00005f / seasons[currentSeason].getParticle()->getSize());
     ++tick;
     const qreal retinaScale = devicePixelRatio();
     glViewport(0, 0, width() * retinaScale, height() * retinaScale);
@@ -407,90 +511,48 @@ void TriangleWindow::render() {
 
 
 
-    // Ajout de nouvelles particules
 
-    Particle* p;
-    for (int i=0; i < 1; ++i) {
-         p = particles.ask();
-
-         //p->setName("Hello");
-         p->copy(seasons[currentSeason].getParticle());
-         p->setPosition(0.1f, 1.0f, 0.1f);
-    }
-
-    // Vie des particules
-    std::list<Particle*>::iterator it = particles.used.begin();
-   /*
-    while (i != items.end())
-    {
-        bool isActive = (*i)->update();
-        if (!isActive)
-        {
-            items.erase(i++);  // alternatively, i = items.erase(i);
-        }
-        else
-        {
-            other_code_involving(*i);
-            ++i;
-        }
-    }
-    */
-
-    //glUseProgram(0);
-    //glPointSize(100);
-    //glColor3ub(255,0,0);
-    //glBegin(GL_POINT);
-
-    particlesPos.clear();
-    particlesCol.clear();
-    particlesUV.clear();
-    particlesNrm.clear();
-    while (it != particles.used.end()) {
-        bool isActive = (*it)->live(this);
-        //cout << isActive << endl;
-        if (isActive) {
-            glm::vec3 pos = (*it)->getPosition();
-            //cout << "t:" << (*it)->getLifeTime() << " ("<< pos.x << ";" << pos.y << ";" << pos.z << ")" << endl;
-            GLint r = (*it)->getColor().r;
-            GLint g = (*it)->getColor().g;
-            GLint b = (*it)->getColor().b;
-
-            particlesPos.push_back(pos.x);
-            particlesPos.push_back(pos.y);
-            particlesPos.push_back(pos.z);
-
-            particlesCol.push_back(0.4f);
-            particlesCol.push_back(1.0f);
-            particlesCol.push_back(1.0f);
-
-            particlesUV.push_back(0.5f);
-            particlesUV.push_back(0.5f);
-
-            particlesNrm.push_back(0.0f);
-            particlesNrm.push_back(1.0f);
-            particlesNrm.push_back(-1.0f);
-        }
-
-        if( !isActive ){
-            particles.recycle(*it);
-            //articles.avaibles.push_back(*it);
-           particles.used.erase(it++);
-        }
-        else{ ++it; }
-
-    }
-
-    //glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
-    //glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesCol.data() );
-    //glVertexAttribPointer(m_uvAttr,  2, GL_FLOAT, GL_FALSE, 0,  particlesUV.data() );
+    glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
+    glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesCol.data() );
+    glVertexAttribPointer(m_uvAttr,  2, GL_FLOAT, GL_FALSE, 0,  particlesUV.data() );
     //glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesNrm.data() );
-    //glDrawArrays(GL_POINTS, 0,  particlesPos.size() / 3);
+    glDrawArrays(GL_POINTS, 0,  particlesPos.size() / 3);
+
+    /*
+    testP_col.clear();
+    testP_pos.clear();
+    testP_nrm.clear();
+    //particule 1
+    testP_pos.push_back(1.0f);
+    testP_pos.push_back(1.0f);
+    testP_pos.push_back(1.0f);
+
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
+
+    //particule 2
+    testP_pos.push_back(4.0f);
+    testP_pos.push_back(3.0f);
+    testP_pos.push_back(4.0f);
+
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
 
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_pos.data() );
     glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_col.data() );
-    //glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_nrm.data() );
-    glDrawArrays(GL_LINES, 0,  testP_pos.size() / 3); //GL_POINTS marche aussi
-
+    glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_nrm.data() );
+    glDrawArrays(GL_LINE, 0,  testP_pos.size() / 3); //GL_POINTS marche aussi
+*/
     glDisableVertexAttribArray(3);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(1);
@@ -524,5 +586,5 @@ void TriangleWindow::nextSeason() {
     }
 
     currentSeason = (currentSeason + 1) % 4;
-    cout << title().toStdString() << " : " << seasons[currentSeason].getName() << endl;
+    //cout << title().toStdString() << " : " << seasons[currentSeason].getName() << endl;
 }

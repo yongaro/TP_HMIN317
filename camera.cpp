@@ -132,7 +132,6 @@ void Camera::context(QMatrix4x4& context) {
     // Recalcul des coordonées position - vue
     vectorsFromAngles();
     target = position + forward;
-    cout << position.x << ";" << position.y << ";" << position.z << endl;
     context.lookAt(
         QVector3D(position.x, position.y, position.z),
         QVector3D(target.x, target.y, target.z),

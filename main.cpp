@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     QObject::connect(&calendar, SIGNAL(timeout()), &w60,  SLOT(nextSeason()));
     //QObject::connect(&calendar, SIGNAL(timeout()), &w30,  SLOT(nextSeason()));
     //QObject::connect(&calendar, SIGNAL(timeout()), &w1,  SLOT(nextSeason()));
-    calendar.start(50000);
+    calendar.start(500000);
 
     return app.exec();
 }
