@@ -13,43 +13,52 @@
 
 using namespace std;
 
+
+
+
 static const char* vertexShaderSource =
     "attribute vec3 posAttr;\n"
     "attribute vec3 colAttr;\n"
     "attribute vec2 uvAttr;\n"
     "attribute vec3 nrmAttr;\n"
-    "uniform sampler2D sampler;\n"
     "varying vec4 col;\n"
     "varying vec3 fragNrm;\n"
+    "varying vec2 fragUV;\n"
     "uniform mat4 matrix;\n"
     "uniform vec3 camPos;\n"
 
     "void main() {\n"
-    "   vec4 surfaceColor = texture2D(sampler, uvAttr);\n"
-    "   if( surfaceColor.x < 0.7 ){ surfaceColor *= vec4(0.5, 1.0, 0.5, 1.0); }\n"
+    "   col = vec4(colAttr,1.0);\n"
     "   fragNrm = nrmAttr;\n"
-    "   col = surfaceColor;\n"
+    "   fragUV = uvAttr;\n"
     "   gl_Position = matrix * vec4(posAttr, 1.0);\n"
     "}\n";
 
 static const char* fragmentShaderSource =
     "varying highp vec4 col;\n"
     "varying highp vec3 fragNrm;\n"
+    "varying highp vec2 fragUV;\n"
     "uniform mat4 matrix;\n"
     "uniform vec3 camPos;\n"
-
-    "vec3 L = normalize( vec3(1.0, 1.0, 0.0) );\n"
-    "vec3 V = normalize( camPos );\n"
-    "vec3 N = normalize( fragNrm );\n"
-    "vec3 R = reflect(-L, N);\n"
-    "vec3 ambient = vec3(0.01, 0.01, 0.01);\n"
-    "vec3 diffuse = max(dot(N, L), 0.0) * col.rgb;\n"
-    "float shininess = 16.0;\n"
-    "vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.2, 0.2, 0.2);\n"
+    "uniform sampler2D sampler;\n"
 
     "void main() {\n"
-    "   if( (gl_Color.x > 0.0 && gl_Color.y > 0.0) && gl_Color.z > 0.0 ){ gl_FragColor = gl_Color; }\n"
-    "   else{ gl_FragColor = vec4(ambient + diffuse + specular, 1.0); }\n"
+    "   if( (col.r == 0.0 && col.g == 0.0) && col.b == 0.0 ){\n"
+    "       vec4 surfaceColor = texture2D(sampler, fragUV);\n"
+    "       if( surfaceColor.r < 0.7 ){ surfaceColor *= vec4(0.5, 1.0, 0.5, 1.0); }\n"
+    "       vec3 L = normalize( vec3(1.0, 1.0, 0.0) );\n"
+    "       vec3 V = normalize( camPos );\n"
+    "       vec3 N = normalize( fragNrm );\n"
+    "       vec3 R = reflect(-L, N);\n"
+
+    "       vec3 ambient = vec3(0.01, 0.01, 0.01);\n"
+    "       vec3 diffuse = max(dot(N, L), 0.0) * surfaceColor.rgb;\n"
+    "       float shininess = 16.0;\n"
+    "       vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.2, 0.2, 0.2);\n"
+
+    "       gl_FragColor = vec4(ambient + diffuse + specular, 1.0);\n"
+    "   }\n"
+    "   else{ gl_FragColor = col; }\n"
     "}\n";
 
 
@@ -72,6 +81,32 @@ TriangleWindow::TriangleWindow(const unsigned char fps)
     initTimer();
     initMap();
     initSeason();
+
+    //particule 1
+    testP_pos.push_back(1.0f);
+    testP_pos.push_back(1.0f);
+    testP_pos.push_back(1.0f);
+
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
+
+    //particule 2
+    testP_pos.push_back(4.0f);
+    testP_pos.push_back(3.0f);
+    testP_pos.push_back(4.0f);
+
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+    testP_col.push_back(1.0f);
+
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
+    testP_nrm.push_back(1.0f);
 }
 
 void TriangleWindow::initCamera() {
@@ -207,9 +242,9 @@ void TriangleWindow::addPointToTriangles (const unsigned int x, const unsigned i
     triangles.push_back( py );
     triangles.push_back( pz );
 
-    colors.push_back(1.0f);
-    colors.push_back(1.0f);
-    colors.push_back(1.0f);
+    colors.push_back(0.0f);
+    colors.push_back(0.0f);
+    colors.push_back(0.0f);
 
     uv.push_back( (GLfloat)x/(m_img_w -1));
     uv.push_back( (GLfloat)z/(m_img_h -1));
@@ -279,9 +314,9 @@ void TriangleWindow::initialize() {
 
     glEnable(GL_DEPTH_TEST);
     glDepthRange(0,1);
-    glFrontFace(GL_CCW);
-    glCullFace(GL_BACK);
-    glEnable(GL_CULL_FACE);
+    //glFrontFace(GL_CCW);
+    //glCullFace(GL_BACK);
+    //glEnable(GL_CULL_FACE);
     glShadeModel(GL_SMOOTH);
 }
 
@@ -364,6 +399,9 @@ void TriangleWindow::render() {
     glEnableVertexAttribArray(3);
 
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, triangles.data() );
+    glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, colors.data() );
+    glVertexAttribPointer(m_uvAttr, 2, GL_FLOAT, GL_FALSE, 0, uv.data() );
+    glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, nrm.data() );
     glDrawArrays(GL_TRIANGLES, 0,  triangles.size() / 3);
 
 
@@ -398,12 +436,15 @@ void TriangleWindow::render() {
     }
     */
 
-    glUseProgram(0);
-    glPointSize(10);
-    glColor3ub(255,0,0);
-    glBegin(GL_POINT);
+    //glUseProgram(0);
+    //glPointSize(100);
+    //glColor3ub(255,0,0);
+    //glBegin(GL_POINT);
 
     particlesPos.clear();
+    particlesCol.clear();
+    particlesUV.clear();
+    particlesNrm.clear();
     while (it != particles.used.end()) {
         bool isActive = (*it)->live(this);
         //cout << isActive << endl;
@@ -417,30 +458,43 @@ void TriangleWindow::render() {
             particlesPos.push_back(pos.x);
             particlesPos.push_back(pos.y);
             particlesPos.push_back(pos.z);
-            glVertex3f(pos.x, pos.y, pos.z);
-            glColor3f(1.0f,0.0f,0.0f);
+
+            particlesCol.push_back(0.4f);
+            particlesCol.push_back(1.0f);
+            particlesCol.push_back(1.0f);
+
+            particlesUV.push_back(0.5f);
+            particlesUV.push_back(0.5f);
+
+            particlesNrm.push_back(0.0f);
+            particlesNrm.push_back(1.0f);
+            particlesNrm.push_back(-1.0f);
         }
 
-        if (!isActive) {
+        if( !isActive ){
             particles.recycle(*it);
             //articles.avaibles.push_back(*it);
            particles.used.erase(it++);
-
-        } else {
-            ++it;
         }
+        else{ ++it; }
 
     }
 
     //glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
+    //glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesCol.data() );
+    //glVertexAttribPointer(m_uvAttr,  2, GL_FLOAT, GL_FALSE, 0,  particlesUV.data() );
+    //glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesNrm.data() );
     //glDrawArrays(GL_POINTS, 0,  particlesPos.size() / 3);
+
+    glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_pos.data() );
+    glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_col.data() );
+    //glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_nrm.data() );
+    glDrawArrays(GL_LINES, 0,  testP_pos.size() / 3); //GL_POINTS marche aussi
 
     glDisableVertexAttribArray(3);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
-    glEnd();
-    glFlush();
     m_program->release();
 
     ++m_frame;

@@ -51,6 +51,13 @@ private:
 
     Pool<Particle> particles;
     std::vector<GLfloat> particlesPos;
+    std::vector<GLfloat> particlesCol;
+    std::vector<GLfloat> particlesUV;
+    std::vector<GLfloat> particlesNrm;
+    //Une ou deux lignes bien visibles
+    std::vector<GLfloat> testP_pos;
+    std::vector<GLfloat> testP_col;
+    std::vector<GLfloat> testP_nrm;
 
     bool _hold; //au départ on part du principe que le bouton n'est pas maintenu
     bool on;
