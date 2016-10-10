@@ -13,7 +13,8 @@
 
 using namespace std;
 
-
+unsigned int increaseCall = 0;
+unsigned int decreaseCall = 0;
 
 
 static const char* vertexShaderSource =
@@ -71,6 +72,7 @@ TriangleWindow::~TriangleWindow() {
         delete[] groundHeight[i];
     }
     delete[] groundHeight;
+    delete particles;
 }
 
 TriangleWindow::TriangleWindow(const unsigned char fps)
@@ -81,45 +83,22 @@ TriangleWindow::TriangleWindow(const unsigned char fps)
       m_program(0),
       m_frame(0)
 {
-    particles = Pool<Particle> (200);
+    particles = new Pool<Particle> (200);
     initCamera();
     initTimer();
     initMap();
     initSeason();
-
-    //particule 1
-    testP_pos.push_back(1.0f);
-    testP_pos.push_back(1.0f);
-    testP_pos.push_back(1.0f);
-
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-
-    //particule 2
-    testP_pos.push_back(4.0f);
-    testP_pos.push_back(3.0f);
-    testP_pos.push_back(4.0f);
-
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
 }
 
 void TriangleWindow::initCamera() {
     m_cam = Camera(0.0f, 2.0f, 5.0f);
+    #pragma omp parallel
+    {
     m_cam.see(1.0f, 2.0f, 1.0f);
     m_cam.setSpeed(m_step);
     m_cam.setBoost(10.0f);
     m_cam.setSensivity(0.3f);
+    }
 }
 
 void TriangleWindow::initTimer() {
@@ -148,12 +127,16 @@ void TriangleWindow::initMap() {
 
 void TriangleWindow::initSeason() {
     seasons = new Season [4];
+
+#pragma omp parallel
+    {
     seasons[0] = Season::winter();
     seasons[1] = Season::spring();
     seasons[2] = Season::summer();
     seasons[3] = Season::automn();
 
     currentSeason = 0;
+    }
 }
 
 void TriangleWindow::setFps (const unsigned char newFps) {
@@ -223,6 +206,10 @@ void TriangleWindow::keyPressEvent(QKeyEvent* key) {
             this->on = !on;
             break;
 
+        case Qt::Key_Shift :
+            m_cam.setBooster(true);
+            break;
+
         case Qt::Key_P :
             setFps(m_fps * 2);
             break;
@@ -231,9 +218,6 @@ void TriangleWindow::keyPressEvent(QKeyEvent* key) {
             setFps(m_fps / 2);
             break;
 
-        case Qt::Key_Shift :
-            m_cam.setBooster(true);
-            break;
 
         default:
             break;
@@ -264,7 +248,7 @@ void TriangleWindow::addPointToTriangles (const unsigned int x, const unsigned i
     uv.push_back( (GLfloat)z/(m_img_h -1));
 }
 
-glm::vec3 TriangleWindow::getNormal(const unsigned int fpIndex){
+glm::vec3 TriangleWindow::getNormal(const unsigned int fpIndex) {
     glm::vec3 p1 = glm::vec3(triangles.at(fpIndex),triangles.at(fpIndex+1),triangles.at(fpIndex+2));
     glm::vec3 p2 = glm::vec3(triangles.at(fpIndex+3),triangles.at(fpIndex+4),triangles.at(fpIndex+5));
     glm::vec3 p3 = glm::vec3(triangles.at(fpIndex+6),triangles.at(fpIndex+7),triangles.at(fpIndex+8));
@@ -289,6 +273,7 @@ void TriangleWindow::initialize() {
     m_matrixUniform = m_program->uniformLocation("matrix");
     m_camPosUniform = m_program->uniformLocation("camPos");
 
+
     // Creation des triangles
     for (GLuint x = 0; x < m_img_w; ++x) {
         for (GLuint y = 0; y < m_img_h; ++y) {
@@ -311,6 +296,7 @@ void TriangleWindow::initialize() {
             }
         }
     }
+
     //copie des information crees dans les vertex array
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, triangles.data() );
     glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, colors.data() );
@@ -351,80 +337,106 @@ bool TriangleWindow::isOverTextureHeight(GLfloat x, GLfloat y, GLfloat z) {
 
 void TriangleWindow::forwardCam() {
     if (this->isOverTextureHeight(m_cam.getX(), m_cam.getY(), m_cam.getZ() + m_step)) {
-        m_cam.toForward();
+        #pragma omp parallel
+        {
+            m_cam.toForward();
+        }
     }
 }
 
 void TriangleWindow::rearwardCam() {
     if (this->isOverTextureHeight(m_cam.getX(), m_cam.getY(), m_cam.getZ() - m_step)) {
-        m_cam.toBackward();
+        #pragma omp parallel
+        {
+            m_cam.toBackward();
+        }
     }
 }
 
 void TriangleWindow::increaseTextureHeight(GLfloat x, GLfloat z, GLfloat addValue) {
-    // On transforme les coordonée 3D en coordonnées images
-     unsigned int xp = (x / m_step);
-     unsigned int yp = (z / m_step);
+    #pragma omp parallel
+    {
 
-     if((xp < m_img_w) && (yp < m_img_h)){
-        GLfloat a = groundHeight[xp][yp];
+        // On transforme les coordonée 3D en coordonnées images
+         unsigned int xp = (x / m_step);
+         unsigned int yp = (z / m_step);
 
-         groundHeight[xp][yp] += addValue;
-
-          cout << (groundHeight[xp][yp] - a) << endl;
-
-     }
+         if((xp < m_img_w) && (yp < m_img_h)){
+            groundHeight[xp][yp] += addValue;
+        }
+    }
 }
 
 void TriangleWindow::decreaseTextureHeight(GLfloat x, GLfloat z, GLfloat removeValue) {
-    // On transforme les coordonée 3D en coordonnées images
-     unsigned int xp = (x / m_step);
-     unsigned int yp = (z / m_step);
+    #pragma omp parallel
+    {
+        // On transforme les coordonée 3D en coordonnées images
+         unsigned int xp = (x / m_step);
+         unsigned int yp = (z / m_step);
+         // Lecture du pixel
 
-     // Lecture du pixel
-     if((xp < m_img_w) && (yp < m_img_h)){
-         groundHeight[xp][yp] -= removeValue;
-     }
+         if((xp < m_img_w) && (yp < m_img_h)) {
+             groundHeight[xp][yp] -= removeValue;
+         }
+    }
 }
 
 void TriangleWindow::towardRightCam() {
     if (this->isOverTextureHeight(m_cam.getX() + m_step, m_cam.getY(), m_cam.getZ())) {
-        m_cam.toRight();
+        #pragma omp parallel
+        {
+            m_cam.toRight();
+        }
     }
 }
 
 void TriangleWindow::towardLeftCam() {
     if (this->isOverTextureHeight(m_cam.getX() - m_step, m_cam.getY(), m_cam.getZ())) {
-        m_cam.toLeft();
+        #pragma omp parallel
+        {
+            m_cam.toLeft();
+        }
     }
 }
 
 void TriangleWindow::upCam() {
     if (this->isOverTextureHeight(m_cam.getX(), m_cam.getY() + m_step, m_cam.getZ())) {
-        m_cam.toUp();
+        #pragma omp parallel
+        {
+            m_cam.toUp();
+        }
     }
 }
 
 void TriangleWindow::downCam() {
     if (this->isOverTextureHeight(m_cam.getX(), m_cam.getY() - m_step, m_cam.getZ())) {
-        m_cam.toDown();
+        #pragma omp parallel
+        {
+            m_cam.toDown();
+        }
     }
 }
 
 void TriangleWindow::updateParticles() {
+    //cout << "DEBUT UPDATE PARTICLES" << endl;
     // Ajout de nouvelles particules
 
-    Particle* p;
-    for (int i=0; i < 20; ++i) {
-         p = particles.ask();
+    if (seasons[currentSeason].gotParticle()) {
+        Particle* p;
+        for (int i=0; i < 10; ++i) {
+             p = particles->ask();
 
-         //p->setName("Hello");
-         p->copy(seasons[currentSeason].getParticle());
-         p->setPosition((rand() % m_img_w) * m_step, 5.0f, (rand() % m_img_h) * m_step);
+             //p->setName("Hello");
+             #pragma omp parallel
+             {
+                 p->copy(seasons[currentSeason].getParticle());
+                 p->setPosition( (rand() % m_img_w) * m_step, 5.0f, (rand() % m_img_h) * m_step);
+             }
+        }
     }
 
     // Vie des particules
-    std::list<Particle*>::iterator it = particles.used.begin();
+    std::list<Particle*>::iterator it = particles->used.begin();
 
     //glUseProgram(0);
     //glPointSize(100);
@@ -435,54 +447,95 @@ void TriangleWindow::updateParticles() {
     particlesCol.clear();
     particlesUV.clear();
     particlesNrm.clear();
-    int i = 0;
-    while (it != particles.used.end()) {
+    while (it != particles->used.end()) {
         bool isActive = (*it)->live(this);
-
         glm::vec3 pos = (*it)->getPosition();
+
+        GLint r = (*it)->getColor().r;
+        GLint g = (*it)->getColor().g;
+        GLint b = (*it)->getColor().b;
+
         if (isActive) {
-           GLint r = (*it)->getColor().r;
-            GLint g = (*it)->getColor().g;
-            GLint b = (*it)->getColor().b;
+            if (currentSeason == AUTOMN) {
+                particlesPos.push_back(pos.x);
+                particlesPos.push_back(pos.y);
+                particlesPos.push_back(pos.z);
 
-            particlesPos.push_back(pos.x);
-            particlesPos.push_back(pos.y);
-            particlesPos.push_back(pos.z);
+                particlesCol.push_back(0.2f);
+                particlesCol.push_back(0.2f);
+                particlesCol.push_back(1.0f);
 
-            particlesCol.push_back(1.0f);
-            particlesCol.push_back(1.0f);
-            particlesCol.push_back(1.0f);
+                particlesUV.push_back(0.5f);
+                particlesUV.push_back(0.5f);
 
-            particlesUV.push_back(0.5f);
-            particlesUV.push_back(0.5f);
+                particlesNrm.push_back(0.0f);
+                particlesNrm.push_back(1.0f);
+                particlesNrm.push_back(0.0f);
 
-            particlesNrm.push_back(0.0f);
-            particlesNrm.push_back(1.0f);
-            particlesNrm.push_back(0.0f);
-            i++;
+                particlesPos.push_back(pos.x);
+                particlesPos.push_back(pos.y + 0.01f);
+                particlesPos.push_back(pos.z);
+
+                particlesCol.push_back(0.2f);
+                particlesCol.push_back(0.2f);
+                particlesCol.push_back(1.0f);
+
+                particlesUV.push_back(0.5f);
+                particlesUV.push_back(0.5f);
+
+                particlesNrm.push_back(0.0f);
+                particlesNrm.push_back(1.0f);
+                particlesNrm.push_back(0.0f);
+
+             } else {
+                particlesPos.push_back(pos.x);
+                particlesPos.push_back(pos.y);
+                particlesPos.push_back(pos.z);
+
+                particlesCol.push_back(r);
+                particlesCol.push_back(g);
+                particlesCol.push_back(b);
+
+                particlesUV.push_back(0.5f);
+                particlesUV.push_back(0.5f);
+
+                particlesNrm.push_back(0.0f);
+                particlesNrm.push_back(1.0f);
+                particlesNrm.push_back(0.0f);
+            }
+
         }
 
-        if( !isActive ){
-            particles.recycle(*it);
-            decreaseTextureHeight(pos.x, pos.y, (*it)->getSize());
-            //articles.avaibles.push_back(*it);
-           particles.used.erase(it++);
-        }
-        else{ ++it; }
+        if (!isActive) {
+             if ((*it)->isFixed()) {
+                decreaseTextureHeight(pos.x, pos.z, (*it)->getSize());
+             }
 
+             std::list<Particle*>::iterator tmp = it;
+             it++;
+             particles->recycle(*tmp);
+        } else {
+            ++it;
+        }
     }
 }
 
 void TriangleWindow::render() {
-    updateParticles();
-    glPointSize(0.00005f / seasons[currentSeason].getParticle()->getSize());
-    ++tick;
+
     const qreal retinaScale = devicePixelRatio();
     glViewport(0, 0, width() * retinaScale, height() * retinaScale);
 
-    //glDepthMask(GL_TRUE);
     glClearColor(0.185,0.310,0.313,0.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //#pragma omp parallel
+    //{
+        updateParticles();
+    //}
+
+    glPointSize(50 * seasons[currentSeason].getParticle()->getSize());
+    ++tick;
+
     m_program->bind();
 
     QMatrix4x4 matrix;
@@ -508,51 +561,12 @@ void TriangleWindow::render() {
     glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, nrm.data() );
     glDrawArrays(GL_TRIANGLES, 0,  triangles.size() / 3);
 
-
-
-
-
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
     glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesCol.data() );
     glVertexAttribPointer(m_uvAttr,  2, GL_FLOAT, GL_FALSE, 0,  particlesUV.data() );
-    //glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesNrm.data() );
-    glDrawArrays(GL_POINTS, 0,  particlesPos.size() / 3);
+    glDrawArrays((currentSeason == AUTOMN) ? GL_LINES : GL_POINTS, 0,  particlesPos.size() / 3);
 
-    /*
-    testP_col.clear();
-    testP_pos.clear();
-    testP_nrm.clear();
-    //particule 1
-    testP_pos.push_back(1.0f);
-    testP_pos.push_back(1.0f);
-    testP_pos.push_back(1.0f);
 
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-
-    //particule 2
-    testP_pos.push_back(4.0f);
-    testP_pos.push_back(3.0f);
-    testP_pos.push_back(4.0f);
-
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-    testP_col.push_back(1.0f);
-
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-    testP_nrm.push_back(1.0f);
-
-    glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_pos.data() );
-    glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_col.data() );
-    glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, testP_nrm.data() );
-    glDrawArrays(GL_LINE, 0,  testP_pos.size() / 3); //GL_POINTS marche aussi
-*/
     glDisableVertexAttribArray(3);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(1);
@@ -578,13 +592,26 @@ void TriangleWindow::setSeason(const unsigned char season) {
 }
 
 void TriangleWindow::nextSeason() {
-    while(particles.used.size() > 0) {
-     Particle* p = particles.used.front();
-     particles.used.pop_front();
-     particles.recycle(p);
-     particles.avaibles.push_back(p);
-    }
+    //#pragma omp parallel
+    //{
+        while(particles->used.size() > 0) {
+         Particle* p = particles->used.front();
+         glm::vec3 pos = p->getPosition();
+         if (p->isFixed()) {
+             decreaseTextureHeight(pos.x, pos.z, p->getSize());
+         }
+         particles->recycle(p);
+        }
+    //}
+
+    /*
+    // DEBUG
+    assert(particles->used.empty());
+    cout << increaseCall << " : " << decreaseCall << endl;
+    assert(increaseCall == decreaseCall);
+    increaseCall = 0;
+    decreaseCall = 0;
+    */
 
     currentSeason = (currentSeason + 1) % 4;
-    //cout << title().toStdString() << " : " << seasons[currentSeason].getName() << endl;
 }

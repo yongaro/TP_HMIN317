@@ -52,7 +52,7 @@ private:
     void initMap();
     void initSeason();
 
-    Pool<Particle> particles;
+    Pool<Particle> *particles;
     std::vector<GLfloat> particlesPos;
     std::vector<GLfloat> particlesCol;
     std::vector<GLfloat> particlesUV;

@@ -1,6 +1,8 @@
 #ifndef POOL_H
 #define POOL_H
 
+
+#include <vector>
 #include <list>
 #include <algorithm>
 
@@ -19,6 +21,7 @@ public:
     std::list<Ressource*> used;
 
 private:
+    std::vector<Ressource*> data;
 //    std::list<Ressource*> avaibles;
 //    std::list<Ressource*> used;
 

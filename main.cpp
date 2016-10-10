@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     //w1.run();
 
     //w120.setSeason(TriangleWindow::WINTER);
-    w60.setSeason(TriangleWindow::WINTER);
+    w60.setSeason(TriangleWindow::AUTOMN);
     //w30.setSeason(TriangleWindow::WINTER);
     //w1.setSeason(TriangleWindow::AUTOMN);
 
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     QObject::connect(&calendar, SIGNAL(timeout()), &w60,  SLOT(nextSeason()));
     //QObject::connect(&calendar, SIGNAL(timeout()), &w30,  SLOT(nextSeason()));
     //QObject::connect(&calendar, SIGNAL(timeout()), &w1,  SLOT(nextSeason()));
-    calendar.start(500000);
+    calendar.start(5000);
 
     return app.exec();
 }

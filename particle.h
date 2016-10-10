@@ -21,8 +21,8 @@ public :
     void setName(std::string);
     std::string getName() const;
 
-    void setSize(float);
-    float getSize() const;
+    void setSize(GLfloat);
+    GLfloat getSize() const;
 
     void setColor(unsigned char, unsigned char, unsigned char);
     struct Color getColor() const;
@@ -30,24 +30,27 @@ public :
     void setPosition(GLfloat, GLfloat, GLfloat);
     glm::vec3 getPosition() const;
 
-    void setWeight(float);
-    float getWeight() const;
 
+    void setLifeTime(unsigned int);
+    unsigned int getLifeTime() const;
 
-     void setLifeTime(unsigned int);
-     unsigned int getLifeTime() const;
+    void setWeight(GLfloat);
+    GLfloat getWeight() const;
+
 
     bool live(TriangleWindow*);
     void move();
     void clear();
     void copy(Particle*);
+    bool isFixed() const;
 private :
+    bool fixed;
     std::string name;
-    float size;
+    GLfloat size;
     struct Color color;
     glm::vec3 position;
     unsigned int lifeTime;
-    float weight;
+    GLfloat weight;
 };
 
 #endif // PARTICLE_H

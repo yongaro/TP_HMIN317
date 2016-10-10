@@ -5,3 +5,6 @@ SOURCES += \
 
 target.path = $$[QT_INSTALL_EXAMPLES]/gui/openglwindow
 INSTALLS += target
+
+QMAKE_CXXFLAGS+= -fopenmp
+QMAKE_LFLAGS +=  -fopenmp

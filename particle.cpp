@@ -4,10 +4,12 @@
 #include "trianglewindow.h"
 #include <iostream>
 #include <GL/gl.h>
+
 Particle::Particle() {
     position.x = 0;
     position.y = 0;
     position.z = 0;
+    fixed = false;
 
     size = 0;
     weight = 0;
@@ -15,7 +17,9 @@ Particle::Particle() {
     setName("undefined");
 }
 
-Particle::~Particle() {}
+Particle::~Particle() {
+    //std::cout << " delete particle " << std::endl;
+}
 
 void Particle::setName(std::string newName) {
     name = newName;
@@ -25,19 +29,19 @@ std::string Particle::getName() const {
     return name;
 }
 
-void Particle::setSize(float newSize) {
+void Particle::setSize(GLfloat newSize) {
     size = newSize;
 }
 
-float Particle::getWeight() const {
+GLfloat Particle::getWeight() const {
     return weight;
 }
 
-void Particle::setWeight(float newWeight) {
+void Particle::setWeight(GLfloat newWeight) {
     weight = newWeight;
 }
 
-float Particle::getSize() const {
+GLfloat Particle::getSize() const {
     return size;
 }
 
@@ -75,14 +79,13 @@ void Particle::move () {
 
 bool Particle::live(TriangleWindow* ctx) {
     if (lifeTime > 0) {
-        if (ctx->isOverTextureHeight(position.x, position.y - weight, position.z)) {
-            move();
-            /*
-            if (ctx->isOverTextureHeight(position.x, position.y, position.z)) {
+        if (!fixed) {
+            if (ctx->isOverTextureHeight(position.x, position.y - weight, position.z)) {
                 move();
-            }*/
-        }  else {
-            ctx->increaseTextureHeight(position.x, position.z, size);
+            }  else {
+                fixed = true;
+                ctx->increaseTextureHeight(position.x, position.z, size);
+            }
         }
         return ((--lifeTime) > 0);
     } else {
@@ -95,7 +98,7 @@ void Particle::clear() {
     position.x = 0;
     position.y = 0;
     position.z = 0;
-
+    fixed = false;
     size = 0;
     weight = 0;
     setColor(255,255,255);
@@ -109,4 +112,10 @@ void Particle::copy(Particle* p) {
     color = p->color;
     setName(p->getName());
     weight = p->weight;
+    fixed = p->fixed;
+}
+
+
+bool Particle::isFixed() const {
+    return fixed;
 }
