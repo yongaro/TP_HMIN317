@@ -17,6 +17,7 @@ unsigned int increaseCall = 0;
 unsigned int decreaseCall = 0;
 
 
+
 static const char* vertexShaderSource =
     "attribute vec3 posAttr;\n"
     "attribute vec3 colAttr;\n"
@@ -29,7 +30,10 @@ static const char* vertexShaderSource =
     "uniform vec3 camPos;\n"
 
     "void main() {\n"
-    "   col = vec4(colAttr,1.0);\n"
+    "   col = vec4(colAttr,0.7);\n"
+    "   if( (col.r != 0.0 || col.g != 0.0) || col.b != 0.0 ){\n"
+    "       gl_PointSize = 1.5f;\n"
+    "   }\n"
     "   fragNrm = nrmAttr;\n"
     "   fragUV = uvAttr;\n"
     "   gl_Position = matrix * vec4(posAttr, 1.0);\n"
@@ -47,21 +51,20 @@ static const char* fragmentShaderSource =
     "   if( (col.r == 0.0 && col.g == 0.0) && col.b == 0.0 ){\n"
     "       vec4 surfaceColor = texture2D(sampler, fragUV);\n"
     "       if( surfaceColor.r < 0.7 ){ surfaceColor *= vec4(0.5, 1.0, 0.5, 1.0); }\n"
-    "       vec3 L = normalize( vec3(1.0, 1.0, 0.0) );\n"
+    "       vec3 L = normalize( vec3(0.0, 1.0, -1.0) );\n"
     "       vec3 V = normalize( camPos );\n"
     "       vec3 N = normalize( fragNrm );\n"
     "       vec3 R = reflect(-L, N);\n"
 
     "       vec3 ambient = vec3(0.01, 0.01, 0.01);\n"
     "       vec3 diffuse = max(dot(N, L), 0.0) * surfaceColor.rgb;\n"
-    "       float shininess = 16.0;\n"
+    "       float shininess = 8.0;\n"
     "       vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.2, 0.2, 0.2);\n"
 
     "       gl_FragColor = vec4(ambient + diffuse + specular, 1.0);\n"
     "   }\n"
     "   else{ gl_FragColor = col; }\n"
     "}\n";
-
 
 
 TriangleWindow::~TriangleWindow() {
@@ -77,7 +80,7 @@ TriangleWindow::~TriangleWindow() {
 
 TriangleWindow::TriangleWindow(const unsigned char fps)
     : on(false),
-      m_step(0.02f),
+      m_step(0.04f),
       tick(0),
       m_fps(fps),
       m_program(0),
@@ -314,10 +317,13 @@ void TriangleWindow::initialize() {
 
     glEnable(GL_DEPTH_TEST);
     glDepthRange(0,1);
-    //glFrontFace(GL_CCW);
-    //glCullFace(GL_BACK);
-    //glEnable(GL_CULL_FACE);
-    glShadeModel(GL_SMOOTH);
+    glFrontFace(GL_CCW);
+    glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_PROGRAM_POINT_SIZE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
+    //glShadeModel(GL_SMOOTH);
 }
 
 
