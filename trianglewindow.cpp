@@ -32,7 +32,7 @@ static const char* vertexShaderSource =
     "void main() {\n"
     "   col = vec4(colAttr,0.7);\n"
     "   if( (col.r != 0.0 || col.g != 0.0) || col.b != 0.0 ){\n"
-    "       gl_PointSize = 1.5f;\n"
+    "       gl_PointSize = 2;\n"
     "   }\n"
     "   fragNrm = nrmAttr;\n"
     "   fragUV = uvAttr;\n"
@@ -43,9 +43,11 @@ static const char* fragmentShaderSource =
     "varying highp vec4 col;\n"
     "varying highp vec3 fragNrm;\n"
     "varying highp vec2 fragUV;\n"
+    "varying highp mat3 fragTBN;"
     "uniform mat4 matrix;\n"
     "uniform vec3 camPos;\n"
     "uniform sampler2D sampler;\n"
+    "uniform sampler2D particleSamp;\n"
 
     "void main() {\n"
     "   if( (col.r == 0.0 && col.g == 0.0) && col.b == 0.0 ){\n"
@@ -56,14 +58,14 @@ static const char* fragmentShaderSource =
     "       vec3 N = normalize( fragNrm );\n"
     "       vec3 R = reflect(-L, N);\n"
 
-    "       vec3 ambient = vec3(0.01, 0.01, 0.01);\n"
-    "       vec3 diffuse = max(dot(N, L), 0.0) * surfaceColor.rgb;\n"
-    "       float shininess = 8.0;\n"
-    "       vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.2, 0.2, 0.2);\n"
+    "       vec3 ambient = vec3(0.1, 0.1, 0.1);\n"
+    "       vec3 diffuse = max(dot(N, L), 0.0) * surfaceColor.rgb * vec3(0.8,0.8,0.8);\n"
+    "       float shininess = 64.0;\n"
+    "       vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.05, 0.05, 0.05);\n"
 
     "       gl_FragColor = vec4(ambient + diffuse + specular, 1.0);\n"
     "   }\n"
-    "   else{ gl_FragColor = col; }\n"
+    "   else{ gl_FragColor = texture2D(particleSamp,fragUV) * col; }\n"
     "}\n";
 
 
@@ -126,6 +128,16 @@ void TriangleWindow::initMap() {
     } else {
         cerr << "impossible de charger la texture" << endl;
     }
+    if( !terrainNormalMap.load("./normalMap-1.png") ){
+        cerr << "impossible de charger la normalMap" << endl;
+    }
+    if( !snowParticle.load("./snow.png")){
+        cerr << "impossible de charger la particule neige" << endl;
+    }
+    if( !rainParticle.load("./water.png") ){
+        cerr << "impossible de charger la particule pluie" << endl;
+    }
+
 }
 
 void TriangleWindow::initSeason() {
@@ -155,7 +167,7 @@ float TriangleWindow::YfromHeightMap(GLfloat x, GLfloat z){
     unsigned int yp = (z / m_step);
 
     // Lecture du pixel
-    if((xp < m_img_w) && (yp < m_img_h)){
+    if( (xp < m_img_w) && (yp < m_img_h) ){
         QColor pix = m_img.pixel(xp, yp);
         return (GLfloat)pix.red() / 255.0f * 2.0f;
     }
@@ -251,6 +263,30 @@ void TriangleWindow::addPointToTriangles (const unsigned int x, const unsigned i
     uv.push_back( (GLfloat)z/(m_img_h -1));
 }
 
+
+void TriangleWindow::getTerrainNormals(){
+    glm::vec3 normal;
+    glm::vec3 point;
+    GLfloat hL,hR,hU,hD;
+
+    nrm.clear();
+    for(size_t i = 0; i < triangles.size()-3; i+=3){
+        point = glm::vec3(triangles[i],triangles[i+1],triangles[i+2]);
+        hL = YfromHeightMap(point.x - m_step, point.z);
+        hR = YfromHeightMap(point.x + m_step, point.z);
+        hU = YfromHeightMap(point.x, point.z + m_step);
+        hD = YfromHeightMap(point.x, point.z - m_step);
+
+        normal.x = hL - hR;
+        normal.y = YfromHeightMap(point.x, point.z);
+        normal.z = hU - hD;
+        normal = glm::normalize(normal);
+        nrm.push_back(normal.x);
+        nrm.push_back(normal.y);
+        nrm.push_back(normal.z);
+    }
+}
+
 glm::vec3 TriangleWindow::getNormal(const unsigned int fpIndex) {
     glm::vec3 p1 = glm::vec3(triangles.at(fpIndex),triangles.at(fpIndex+1),triangles.at(fpIndex+2));
     glm::vec3 p2 = glm::vec3(triangles.at(fpIndex+3),triangles.at(fpIndex+4),triangles.at(fpIndex+5));
@@ -261,6 +297,7 @@ glm::vec3 TriangleWindow::getNormal(const unsigned int fpIndex) {
 
     return glm::cross(v1,v2);
 }
+
 
 
 void TriangleWindow::initialize() {
@@ -300,6 +337,8 @@ void TriangleWindow::initialize() {
         }
     }
 
+    getTerrainNormals();
+
     //copie des information crees dans les vertex array
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, triangles.data() );
     glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, colors.data() );
@@ -308,10 +347,31 @@ void TriangleWindow::initialize() {
 
     //Chargement de la texture dans une QImage, passage des donnees bruts a openGL et definition de l interpolation
 
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glGenTextures(1, &heightMap);
+    glBindTexture(GL_TEXTURE_2D, heightMap);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_img_w, m_img_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_img.bits() );
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenTextures(1, &normalMap);
+    glBindTexture(GL_TEXTURE_2D, normalMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, terrainNormalMap.width(), terrainNormalMap.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 terrainNormalMap.bits() );
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenTextures(1, &snowPTex);
+    glBindTexture(GL_TEXTURE_2D, snowPTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, snowParticle.width(), snowParticle.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 snowParticle.bits() );
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenTextures(1, &rainPTex);
+    glBindTexture(GL_TEXTURE_2D, rainPTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rainParticle.width(), rainParticle.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 rainParticle.bits() );
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -444,15 +504,9 @@ void TriangleWindow::updateParticles() {
     // Vie des particules
     std::list<Particle*>::iterator it = particles->used.begin();
 
-    //glUseProgram(0);
-    //glPointSize(100);
-    //glColor3ub(255,0,0);
-    //glBegin(GL_POINT);
-
     particlesPos.clear();
     particlesCol.clear();
     particlesUV.clear();
-    particlesNrm.clear();
     while (it != particles->used.end()) {
         bool isActive = (*it)->live(this);
         glm::vec3 pos = (*it)->getPosition();
@@ -462,52 +516,50 @@ void TriangleWindow::updateParticles() {
         GLint b = (*it)->getColor().b;
 
         if (isActive) {
+            particlesPos.push_back(pos.x);
+            particlesPos.push_back(pos.y);
+            particlesPos.push_back(pos.z);
+            particlesUV.push_back(0.0f); particlesUV.push_back(1.0f);
+
+            particlesPos.push_back(pos.x + 0.02f);
+            particlesPos.push_back(pos.y + 0.07f);
+            particlesPos.push_back(pos.z + 0.07f);
+            particlesUV.push_back(1.0f); particlesUV.push_back(0.0f);
+
+            particlesPos.push_back(pos.x + 0.02f);
+            particlesPos.push_back(pos.y + 0.07f);
+            particlesPos.push_back(pos.z);
+            particlesUV.push_back(0.0f); particlesUV.push_back(0.0f);
+
+            particlesPos.push_back(pos.x);
+            particlesPos.push_back(pos.y);
+            particlesPos.push_back(pos.z);
+            particlesUV.push_back(0.0f); particlesUV.push_back(1.0f);
+
+            particlesPos.push_back(pos.x);
+            particlesPos.push_back(pos.y);
+            particlesPos.push_back(pos.z + 0.07f);
+            particlesUV.push_back(1.0f); particlesUV.push_back(1.0f);
+
+            particlesPos.push_back(pos.x + 0.02f);
+            particlesPos.push_back(pos.y + 0.07f);
+            particlesPos.push_back(pos.z + 0.07f);
+            particlesUV.push_back(1.0f); particlesUV.push_back(0.0f);
+
             if (currentSeason == AUTOMN) {
-                particlesPos.push_back(pos.x);
-                particlesPos.push_back(pos.y);
-                particlesPos.push_back(pos.z);
+                for( size_t i = 0; i < 6; ++i){
+                    particlesCol.push_back(0.12f);
+                    particlesCol.push_back(0.32f);
+                    particlesCol.push_back(0.44f);
+                }
 
-                particlesCol.push_back(0.2f);
-                particlesCol.push_back(0.2f);
-                particlesCol.push_back(1.0f);
-
-                particlesUV.push_back(0.5f);
-                particlesUV.push_back(0.5f);
-
-                particlesNrm.push_back(0.0f);
-                particlesNrm.push_back(1.0f);
-                particlesNrm.push_back(0.0f);
-
-                particlesPos.push_back(pos.x);
-                particlesPos.push_back(pos.y + 0.01f);
-                particlesPos.push_back(pos.z);
-
-                particlesCol.push_back(0.2f);
-                particlesCol.push_back(0.2f);
-                particlesCol.push_back(1.0f);
-
-                particlesUV.push_back(0.5f);
-                particlesUV.push_back(0.5f);
-
-                particlesNrm.push_back(0.0f);
-                particlesNrm.push_back(1.0f);
-                particlesNrm.push_back(0.0f);
-
-             } else {
-                particlesPos.push_back(pos.x);
-                particlesPos.push_back(pos.y);
-                particlesPos.push_back(pos.z);
-
-                particlesCol.push_back(r);
-                particlesCol.push_back(g);
-                particlesCol.push_back(b);
-
-                particlesUV.push_back(0.5f);
-                particlesUV.push_back(0.5f);
-
-                particlesNrm.push_back(0.0f);
-                particlesNrm.push_back(1.0f);
-                particlesNrm.push_back(0.0f);
+             }
+            else {
+                for( size_t i = 0; i < 6; ++i){
+                    particlesCol.push_back(r);
+                    particlesCol.push_back(g);
+                    particlesCol.push_back(b);
+                }
             }
 
         }
@@ -561,16 +613,29 @@ void TriangleWindow::render() {
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, heightMap);
+
+
+
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, triangles.data() );
     glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, colors.data() );
     glVertexAttribPointer(m_uvAttr, 2, GL_FLOAT, GL_FALSE, 0, uv.data() );
     glVertexAttribPointer(m_nrmAttr, 3, GL_FLOAT, GL_FALSE, 0, nrm.data() );
     glDrawArrays(GL_TRIANGLES, 0,  triangles.size() / 3);
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, rainPTex);
+
+    if( currentSeason == WINTER ){
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, snowPTex);
+    }
+
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesPos.data() );
     glVertexAttribPointer(m_colAttr, 3, GL_FLOAT, GL_FALSE, 0, particlesCol.data() );
-    glVertexAttribPointer(m_uvAttr,  2, GL_FLOAT, GL_FALSE, 0,  particlesUV.data() );
-    glDrawArrays((currentSeason == AUTOMN) ? GL_LINES : GL_POINTS, 0,  particlesPos.size() / 3);
+    glVertexAttribPointer(m_uvAttr, 2, GL_FLOAT, GL_FALSE, 0, particlesUV.data() );
+    glDrawArrays(GL_TRIANGLES, 0,  particlesPos.size() / 3);
 
 
     glDisableVertexAttribArray(3);

@@ -52,11 +52,10 @@ private:
     void initMap();
     void initSeason();
 
-    Pool<Particle> *particles;
+    Pool<Particle>* particles;
     std::vector<GLfloat> particlesPos;
     std::vector<GLfloat> particlesCol;
     std::vector<GLfloat> particlesUV;
-    std::vector<GLfloat> particlesNrm;
     //Une ou deux lignes bien visibles
     std::vector<GLfloat> testP_pos;
     std::vector<GLfloat> testP_col;
@@ -83,11 +82,20 @@ private:
 
     Camera m_cam;
     QImage m_img;
+    QImage terrainNormalMap;
+    QImage snowParticle;
+    QImage rainParticle;
+
+    GLuint heightMap;
+    GLuint normalMap;
+    GLuint snowPTex;
+    GLuint rainPTex;
+
     std::vector<GLfloat> triangles;
     std::vector<GLfloat> uv;
     std::vector<GLfloat> colors;
     std::vector<GLfloat> nrm;
-    GLfloat **groundHeight;
+    GLfloat** groundHeight;
     QOpenGLShaderProgram* m_program;
     int m_frame;
 
@@ -101,6 +109,7 @@ private:
     // Utilitaires
     void addPointToTriangles (const unsigned int, const unsigned int, const unsigned int);
     glm::vec3 getNormal(const unsigned int);
+    void getTerrainNormals();
     float YfromHeightMap(GLfloat, GLfloat);
     void setFps(const unsigned char);
 
