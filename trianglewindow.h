@@ -73,6 +73,7 @@ private:
     GLuint m_nrmAttr;
     GLuint m_matrixUniform;
     GLuint m_camPosUniform;
+    GLuint m_LightIntensUniform;
     GLfloat m_step;
     unsigned int tick;
     unsigned char m_fps;
@@ -85,6 +86,7 @@ private:
     QImage terrainNormalMap;
     QImage snowParticle;
     QImage rainParticle;
+    GLfloat lightIntens;
 
     GLuint heightMap;
     GLuint normalMap;

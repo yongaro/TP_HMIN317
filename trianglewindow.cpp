@@ -28,6 +28,7 @@ static const char* vertexShaderSource =
     "varying vec2 fragUV;\n"
     "uniform mat4 matrix;\n"
     "uniform vec3 camPos;\n"
+    "uniform float lightIntens;\n"
 
     "void main() {\n"
     "   col = vec4(colAttr,0.7);\n"
@@ -46,6 +47,7 @@ static const char* fragmentShaderSource =
     "varying highp mat3 fragTBN;"
     "uniform mat4 matrix;\n"
     "uniform vec3 camPos;\n"
+    "uniform float lightIntens;\n"
     "uniform sampler2D sampler;\n"
     "uniform sampler2D particleSamp;\n"
 
@@ -59,9 +61,9 @@ static const char* fragmentShaderSource =
     "       vec3 R = reflect(-L, N);\n"
 
     "       vec3 ambient = vec3(0.1, 0.1, 0.1);\n"
-    "       vec3 diffuse = max(dot(N, L), 0.0) * surfaceColor.rgb * vec3(0.8,0.8,0.8);\n"
+    "       vec3 diffuse = max(dot(N, L), 0.0) * surfaceColor.rgb * vec3(0.8,0.8,0.8) * vec3(lightIntens);\n"
     "       float shininess = 64.0;\n"
-    "       vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.05, 0.05, 0.05);\n"
+    "       vec3 specular = pow(max(dot(R, V), 0.0), shininess) * vec3(0.05, 0.05, 0.05) * vec3(lightIntens);\n"
 
     "       gl_FragColor = vec4(ambient + diffuse + specular, 1.0);\n"
     "   }\n"
@@ -312,7 +314,7 @@ void TriangleWindow::initialize() {
     m_nrmAttr = m_program->attributeLocation("nrmAttr");
     m_matrixUniform = m_program->uniformLocation("matrix");
     m_camPosUniform = m_program->uniformLocation("camPos");
-
+    m_LightIntensUniform = m_program->uniformLocation("lightIntens");
 
     // Creation des triangles
     for (GLuint x = 0; x < m_img_w; ++x) {
@@ -583,7 +585,10 @@ void TriangleWindow::render() {
     const qreal retinaScale = devicePixelRatio();
     glViewport(0, 0, width() * retinaScale, height() * retinaScale);
 
-    glClearColor(0.185,0.310,0.313,0.0);
+    if( currentSeason == SPRING ){ glClearColor(0.270,0.420,0.426,0.0); }
+    if( currentSeason == SUMMER ){ glClearColor(0.370,0.620,0.626,0.0); }
+    if( currentSeason == AUTOMN ){ glClearColor(0.185,0.310,0.313,0.0); }
+    if( currentSeason == WINTER ){ glClearColor(0.185,0.210,0.213,0.0); }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //#pragma omp parallel
@@ -605,8 +610,13 @@ void TriangleWindow::render() {
         matrix.rotate(tick, 0, 1.f, 0.0f);
     }
 
+    if( currentSeason == SPRING ){ lightIntens = 1.0f; }
+    if( currentSeason == SUMMER ){ lightIntens = 1.5f; }
+    if( currentSeason == AUTOMN ){ lightIntens = 0.7f; }
+    if( currentSeason == WINTER ){ lightIntens = 0.5f; }
     m_program->setUniformValue(m_matrixUniform, matrix);
     m_program->setUniformValue(m_camPosUniform, QVector3D(m_cam.getX(), m_cam.getY()+1.0f, m_cam.getZ()));
+    m_program->setUniformValue(m_LightIntensUniform, lightIntens);
 
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
