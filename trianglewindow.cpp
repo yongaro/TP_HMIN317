@@ -33,7 +33,7 @@ static const char* vertexShaderSource =
     "void main() {\n"
     "   col = vec4(colAttr,0.7);\n"
     "   if( (col.r != 0.0 || col.g != 0.0) || col.b != 0.0 ){\n"
-    "       gl_PointSize = 2;\n"
+    "       gl_PointSize = 2.0;\n"
     "   }\n"
     "   fragNrm = nrmAttr;\n"
     "   fragUV = uvAttr;\n"
@@ -145,15 +145,12 @@ void TriangleWindow::initMap() {
 void TriangleWindow::initSeason() {
     seasons = new Season [4];
 
-#pragma omp parallel
-    {
     seasons[0] = Season::winter();
     seasons[1] = Season::spring();
     seasons[2] = Season::summer();
     seasons[3] = Season::automn();
 
     currentSeason = 0;
-    }
 }
 
 void TriangleWindow::setFps (const unsigned char newFps) {
@@ -491,15 +488,14 @@ void TriangleWindow::updateParticles() {
 
     if (seasons[currentSeason].gotParticle()) {
         Particle* p;
-        for (int i=0; i < 10; ++i) {
+        for (int i=0; i < 100; ++i) {
              p = particles->ask();
 
              //p->setName("Hello");
-             #pragma omp parallel
-             {
+
                  p->copy(seasons[currentSeason].getParticle());
                  p->setPosition( (rand() % m_img_w) * m_step, 5.0f, (rand() % m_img_h) * m_step);
-             }
+
         }
     }
 
